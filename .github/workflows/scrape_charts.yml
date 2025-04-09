@@ -1,0 +1,66 @@
+name: Scrape Podcast Charts Daily
+
+on:
+  schedule:
+    # Runs roughly every day at 05:00 UTC (adjust time as needed)
+    - cron: '0 5 * * *'
+  workflow_dispatch: # Allows manual triggering
+
+jobs:
+  scrape:
+    runs-on: ubuntu-latest
+    permissions: # Needed for google-github-actions/auth using Workload Identity (preferred) or SA Keys
+        contents: read
+        id-token: write
+    steps:
+    - name: Checkout repository code
+      uses: actions/checkout@v4
+
+    - name: Set up Python 3.x
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.10'
+
+    - name: Install Python dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+
+    # Authenticate to Google Cloud
+    - id: 'auth'
+      uses: 'google-github-actions/auth@v2'
+      with:
+        credentials_json: '${{ secrets.GCP_SA_KEY }}'
+        # If using Workload Identity Federation (more advanced, keyless):
+        # workload_identity_provider: 'projects/YOUR_PROJECT_NUMBER/locations/global/workloadIdentityPools/YOUR_POOL_ID/providers/YOUR_PROVIDER_ID'
+        # service_account: 'YOUR_SERVICE_ACCOUNT_EMAIL'
+
+
+    # Setup gcloud CLI (gsutil is part of this)
+    - name: Set up Cloud SDK
+      uses: google-github-actions/setup-gcloud@v2
+      # No specific version needed usually, defaults are fine
+
+    - name: Download Database from GCS (if exists)
+      run: |
+        # Use gsutil to copy from GCS bucket to the runner's workspace
+        gsutil cp gs://${{ secrets.GCS_BUCKET_NAME }}/podcasts.db podcasts.db || echo "Database podcasts.db not found in GCS (first run?), will create a new one."
+      continue-on-error: true # Continue if DB doesn't exist yet
+
+    - name: Run Apple Scraper Script
+      run: python apple_scraper.py # Use the correct filename
+
+    - name: Run Spotify Scraper Script
+      run: python spotify_scraper.py # Use the correct filename
+
+    - name: Run PodcastIndex Update Script
+      env:
+         PODCASTINDEX_API_KEY: ${{ secrets.PODCASTINDEX_API_KEY }}
+         PODCASTINDEX_API_SECRET: ${{ secrets.PODCASTINDEX_API_SECRET }}
+      run: python podcastindex_updater.py # Use the correct filename
+
+    - name: Upload Updated Database to GCS
+      run: |
+        # Use gsutil to copy from the runner's workspace back to GCS bucket
+        gsutil cp podcasts.db gs://${{ secrets.GCS_BUCKET_NAME }}/podcasts.db
+      if: success() # Only run if previous steps succeeded
