@@ -6,8 +6,13 @@ import difflib
 import json
 
 # Podcast Index API credentials and base URL.
-API_KEY = "VJMDP9V9R5YVUASAFXPS"
-API_SECRET = "kGMmnQJcYhrtS635aCGJYHuMf4y4KdkZ$5xaV^n#"
+API_KEY = os.environ.get("PODCASTINDEX_API_KEY")
+API_SECRET = os.environ.get("PODCASTINDEX_API_SECRET")
+
+# Added check
+if not API_KEY or not API_SECRET:
+    print("Error: Podcast Index API keys not found in environment variables.")
+    exit(1) # Exit if keys are missing
 BASE_URL = "https://api.podcastindex.org/api/1.0/"
 
 # --- Helper Functions ---
