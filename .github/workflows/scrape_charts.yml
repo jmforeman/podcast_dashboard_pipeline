@@ -48,16 +48,16 @@ jobs:
       continue-on-error: true # Continue if DB doesn't exist yet
 
     - name: Run Apple Scraper Script
-      run: python apple_scraper.py # Use the correct filename
+      run: python scrape_apple_top100.py # Use the correct filename
 
     - name: Run Spotify Scraper Script
-      run: python spotify_scraper.py # Use the correct filename
+      run: python scrape_spotify_top100.py # Use the correct filename
 
     - name: Run PodcastIndex Update Script
       env:
          PODCASTINDEX_API_KEY: ${{ secrets.PODCASTINDEX_API_KEY }}
          PODCASTINDEX_API_SECRET: ${{ secrets.PODCASTINDEX_API_SECRET }}
-      run: python podcastindex_updater.py # Use the correct filename
+      run: python update_all_podcast_details.py # Use the correct filename
 
     - name: Upload Updated Database to GCS
       run: |
